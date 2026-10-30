@@ -2,8 +2,11 @@
 
 import argparse
 import binascii
+import os
 import re
+import signal
 import subprocess
+import time
 
 
 def main() -> None:
@@ -11,16 +14,26 @@ def main() -> None:
     parser.add_argument("executable", help="Path to zephyr.exe from the native_sim build")
     args = parser.parse_args()
 
-    result = subprocess.run(
-        ["timeout", "4s", args.executable, "--rt"],
-        capture_output=True,
-        text=True,
-        timeout=8,
-        check=False,
+    process = subprocess.Popen(
+        [args.executable, "--rt"], stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT, text=True, start_new_session=True,
     )
-    output = result.stdout + result.stderr
-    if result.returncode not in (0, 124):
+    assert process.stdout is not None
+    first_line = process.stdout.readline()
+    match = re.search(r"(/dev/pts/\d+)", first_line)
+    if not match:
+        raise AssertionError(f"No Zephyr UART: {first_line}")
+    frame = bytes.fromhex("a55a020001000101")
+    command = frame + binascii.crc_hqx(frame[2:], 0xFFFF).to_bytes(2, "big")
+    with open(match.group(1), "wb", buffering=0) as serial:
+        serial.write(command)
+    time.sleep(4)
+    os.killpg(process.pid, signal.SIGTERM)
+    output = first_line + process.communicate(timeout=5)[0]
+    if process.returncode not in (0, -signal.SIGTERM):
         raise AssertionError(f"native_sim exited unexpectedly: {output}")
+    if "COMMAND code=1 accepted=1" not in output:
+        raise AssertionError(f"Zephyr did not accept START_COLLECTION: {output}")
 
     samples = [int(value) for value in re.findall(r"SAMPLE seq=(\d+)", output)]
     frame_hex = re.findall(r"^FRAME ([0-9a-f]+)$", output, re.MULTILINE)

@@ -1,5 +1,23 @@
 # Verification record
 
+## Serial integration milestone (2026-10-30)
+
+Environment: Ubuntu 24.04 under WSL2, F Prime v4.4.1, Zephyr v4.4.1,
+`native_sim/native/64`.
+
+- Both applications rebuilt from the current source in the Ubuntu build copy.
+- The integration test started Zephyr, discovered its pseudoterminal, started
+  F Prime GDS with that serial path, and observed sensor packets at F Prime.
+- `START_COLLECTION` and `STOP_COLLECTION` were acknowledged by Zephyr before
+  F Prime changed its collection state; ordered GDS events passed.
+- After collection was restarted, terminating Zephyr caused `SensorLinkLost`
+  within the test's eight-second limit.
+- The strict C packet test passed round-trip, corrupt-CRC rejection, and
+  stream recovery checks. Corrupt bytes were tested at codec level; injecting
+  corruption into the running serial link is still future work.
+- These tests exercise a simulated Linux UART, not physical hardware or
+  real spacecraft sensors.
+
 ## Flight-computer slice
 
 Environment: Ubuntu 24.04 under WSL2, F Prime v4.4.1, Python 3.12, GNU C++ 13.

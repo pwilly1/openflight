@@ -96,3 +96,48 @@ int of_packet_decode(const uint8_t *frame, size_t frame_length,
     memcpy(packet->payload, &frame[7], payload_length);
     return OF_PACKET_OK;
 }
+
+int of_packet_stream_feed(struct of_packet_stream *stream, uint8_t byte,
+                          struct of_packet *packet)
+{
+    uint16_t payload_length;
+    size_t expected_length;
+    int result;
+
+    if (stream == NULL || packet == NULL) {
+        return OF_PACKET_INVALID_ARGUMENT;
+    }
+    if (stream->used >= OF_PACKET_MAX_FRAME) {
+        stream->used = 0;
+    }
+    if (stream->used == 0) {
+        if (byte == OF_PACKET_MARKER_0) {
+            stream->frame[stream->used++] = byte;
+        }
+        return 0;
+    }
+    if (stream->used == 1 && byte != OF_PACKET_MARKER_1) {
+        stream->used = 0;
+        if (byte == OF_PACKET_MARKER_0) {
+            stream->frame[stream->used++] = byte;
+        }
+        return 0;
+    }
+    stream->frame[stream->used++] = byte;
+    if (stream->used < 7) {
+        return 0;
+    }
+    payload_length = (uint16_t)((uint16_t)stream->frame[5] << 8 |
+                                stream->frame[6]);
+    if (payload_length > OF_PACKET_MAX_PAYLOAD) {
+        stream->used = 0;
+        return OF_PACKET_INVALID_LENGTH;
+    }
+    expected_length = OF_PACKET_OVERHEAD + payload_length;
+    if (stream->used < expected_length) {
+        return 0;
+    }
+    result = of_packet_decode(stream->frame, expected_length, packet);
+    stream->used = 0;
+    return result == OF_PACKET_OK ? 1 : result;
+}

@@ -19,6 +19,7 @@ register_fprime_library(
         "${CMAKE_CURRENT_LIST_DIR}/StatusManager.fpp"
     SOURCES
         "${CMAKE_CURRENT_LIST_DIR}/StatusManager.cpp"
+        "${CMAKE_CURRENT_LIST_DIR}/../../../protocol/packet.c"
 #   DEPENDS
 #       MyPackage_MyOtherModule
 )

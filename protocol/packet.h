@@ -4,6 +4,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define OF_PACKET_MARKER_0 0xA5u
 #define OF_PACKET_MARKER_1 0x5Au
 #define OF_PACKET_MAX_PAYLOAD 32u
@@ -33,10 +37,22 @@ struct of_packet {
     uint8_t payload[OF_PACKET_MAX_PAYLOAD];
 };
 
+struct of_packet_stream {
+    uint8_t frame[OF_PACKET_MAX_FRAME];
+    size_t used;
+};
+
 uint16_t of_crc16_ccitt_false(const uint8_t *data, size_t length);
 int of_packet_encode(const struct of_packet *packet, uint8_t *frame,
                      size_t frame_capacity, size_t *frame_length);
 int of_packet_decode(const uint8_t *frame, size_t frame_length,
                      struct of_packet *packet);
+/* Returns 1 for a complete packet, 0 while waiting, or a negative error. */
+int of_packet_stream_feed(struct of_packet_stream *stream, uint8_t byte,
+                          struct of_packet *packet);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

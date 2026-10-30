@@ -1,7 +1,7 @@
 # OpenFlight link packet, version 0
 
-This is the proposed binary framing for the future flight-computer to sensor
-controller link. The current programs do not yet exchange packets.
+This binary frame is exchanged between the F Prime flight computer and the
+Zephyr simulated sensor controller over a pseudoterminal UART.
 
 | Field | Bytes | Encoding |
 | --- | ---: | --- |
@@ -19,11 +19,16 @@ not cover the start marker. The standard check string `123456789` yields
 
 Decoders reject unknown types, overlong or incomplete frames, mismatched
 lengths, and bad CRCs before copying payload bytes into the fixed-size packet
-structure. Stream resynchronization, sequence-gap handling, command payload
-definitions, and timeout policy will be added with the transport adapter.
+structure. The stream parser searches for the marker and rejects bad lengths
+or CRCs. Sequence-gap accounting is future work. A sensor timeout is reported
+after three seconds while collection is enabled.
+
+Command payloads are one byte: `1` starts collection, `2` stops it. Zephyr
+replies with an acknowledgment packet using the same sequence and a two-byte
+payload: command code, then `1` if accepted or `0` if rejected. F Prime updates
+the collection channel only after a matching acknowledgment.
 
 The sensor payload is currently 10 bytes: signed temperature in centi-°C,
 signed roll/pitch/yaw in centi-degrees, and unsigned battery voltage in
-millivolts, each a big-endian 16-bit integer. The Zephyr application emits
-hexadecimal `FRAME` lines for inspection. Those lines are diagnostic output,
-not yet a UART transport to the flight computer.
+millivolts, each a big-endian 16-bit integer. Zephyr sends frames on its UART
+and prints hexadecimal `FRAME` lines for inspection.

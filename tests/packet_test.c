@@ -44,6 +44,26 @@ int main(void)
     source.type = OF_MSG_SENSOR;
     assert(of_packet_encode(&source, frame, OF_PACKET_OVERHEAD, &frame_length) ==
            OF_PACKET_INVALID_LENGTH);
+    assert(of_packet_encode(&source, frame, sizeof(frame), &frame_length) == OF_PACKET_OK);
+    struct of_packet_stream stream = {0};
+    assert(of_packet_stream_feed(&stream, 0x55, &decoded) == 0);
+    assert(of_packet_stream_feed(&stream, OF_PACKET_MARKER_0, &decoded) == 0);
+    assert(of_packet_stream_feed(&stream, OF_PACKET_MARKER_0, &decoded) == 0);
+    int result = 0;
+    for (size_t i = 1; i < frame_length; ++i) {
+        result = of_packet_stream_feed(&stream, frame[i], &decoded);
+    }
+    assert(result == 1 && decoded.sequence == source.sequence);
+    frame[7] ^= 1u;
+    for (size_t i = 0; i < frame_length; ++i) {
+        result = of_packet_stream_feed(&stream, frame[i], &decoded);
+    }
+    assert(result == OF_PACKET_INVALID_CRC);
+    frame[7] ^= 1u;
+    for (size_t i = 0; i < frame_length; ++i) {
+        result = of_packet_stream_feed(&stream, frame[i], &decoded);
+    }
+    assert(result == 1 && decoded.sequence == source.sequence);
     puts("OpenFlight packet tests passed");
     return 0;
 }
