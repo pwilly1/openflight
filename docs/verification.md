@@ -43,3 +43,6 @@ Environment: Ubuntu 24.04 under WSL2, Zephyr v4.4.1,
 - The embedded application was rebuilt from the fresh Ubuntu clone and its
   smoke test passed again. Zephyr was installed separately at v4.4.1; it is
   not vendored into this repository.
+- After commit `ce44669`, the fresh clone was updated, the packet-enabled
+  Zephyr application rebuilt, and both the live frame test and strict C codec
+  test passed again.
