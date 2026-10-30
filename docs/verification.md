@@ -1,0 +1,38 @@
+# Verification record
+
+## Flight-computer slice
+
+Environment: Ubuntu 24.04 under WSL2, F Prime v4.4.1, Python 3.12, GNU C++ 13.
+
+- `fprime-util generate` completed in an Ubuntu-native build copy.
+- `fprime-util build` completed for `StatusManager` and `FlightComputer`.
+- `fprime-cli command-send --list` exposed `GET_STATUS`,
+  `START_COLLECTION`, and `STOP_COLLECTION`.
+- Runtime event log showed `StatusReported` with collection disabled and
+  request count 1, `CollectionChanged` with collection enabled, then
+  `StatusReported` with collection enabled and request count 2.
+- The GDS CLI observed `CollectionEnabled` equal to 1 after starting
+  collection.
+- `tests/test_flight_computer_smoke.py` passed against the built deployment,
+  checking all four runtime events in order.
+
+The build was run from an Ubuntu-native copy of the repository to avoid slow
+Windows-mounted filesystem traversal. The source changes were copied from the
+repository before building. This verifies the committed source shape only
+after the same changes are committed and cloned; it does not prove a clean
+checkout build yet.
+
+## Embedded slice
+
+Environment: Ubuntu 24.04 under WSL2, Zephyr v4.4.1,
+`native_sim/native/64`, GNU C 13 with the host toolchain.
+
+- `west build` completed without a Zephyr SDK or physical hardware.
+- A three-second real-time run printed four `SAMPLE` records and two
+  `HEALTH` records.
+- The final health record reported 19 produced samples, 3 reported samples,
+  no dropped samples, and 5 queued samples. This is a short smoke test, not a
+  queue-pressure or timing-guarantee test.
+- The sample values were synthetic: temperature 24.55–24.74 °C,
+  battery 3.8 V, and fixed-point attitude values.
+- `tests/test_embedded_smoke.py` passed against the running Zephyr executable.
