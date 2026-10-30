@@ -16,11 +16,10 @@ Environment: Ubuntu 24.04 under WSL2, F Prime v4.4.1, Python 3.12, GNU C++ 13.
 - `tests/test_flight_computer_smoke.py` passed against the built deployment,
   checking all four runtime events in order.
 
-The build was run from an Ubuntu-native copy of the repository to avoid slow
-Windows-mounted filesystem traversal. The source changes were copied from the
-repository before building. This verifies the committed source shape only
-after the same changes are committed and cloned; it does not prove a clean
-checkout build yet.
+After commit `5022f6b`, a fresh Ubuntu clone with recursive submodules was
+built and `tests/test_flight_computer_smoke.py` passed again. This verifies
+that the committed flight-computer sources and pinned F Prime submodule
+reproduce on this Ubuntu environment.
 
 ## Embedded slice
 
@@ -36,3 +35,6 @@ Environment: Ubuntu 24.04 under WSL2, Zephyr v4.4.1,
 - The sample values were synthetic: temperature 24.55–24.74 °C,
   battery 3.8 V, and fixed-point attitude values.
 - `tests/test_embedded_smoke.py` passed against the running Zephyr executable.
+- The embedded application was rebuilt from the fresh Ubuntu clone and its
+  smoke test passed again. Zephyr was installed separately at v4.4.1; it is
+  not vendored into this repository.
