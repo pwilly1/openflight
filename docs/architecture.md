@@ -8,11 +8,14 @@ Ground operator -> F Prime GDS -> FlightComputer deployment -> StatusManager
 
 Zephyr native_sim -> sensor thread -> bounded message queue -> telemetry thread
                                       health thread monitors counters
+                                      telemetry thread -> packet codec -> hex log
 ```
 
 The F Prime deployment and Zephyr application currently run independently.
 `StatusManager` owns only the collection flag and request count. The Zephyr
-application owns synthetic sensor values and its local fixed-size queue.
+application owns synthetic sensor values and its local fixed-size queue. Its
+hexadecimal packet output is for inspection and testing, not yet a transport
+to the flight computer.
 
 ## Intended integration
 

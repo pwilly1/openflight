@@ -35,6 +35,11 @@ Environment: Ubuntu 24.04 under WSL2, Zephyr v4.4.1,
 - The sample values were synthetic: temperature 24.55–24.74 °C,
   battery 3.8 V, and fixed-point attitude values.
 - `tests/test_embedded_smoke.py` passed against the running Zephyr executable.
+- The runtime smoke test checked the diagnostic packet frames for message
+  type, sequence, payload length, and CRC.
+- `tests/packet_test.c` passed with `-Wall -Wextra -Werror`; it checked the
+  CRC-16/CCITT-FALSE reference value, round trips, and rejection of corrupted,
+  truncated, and oversized frames.
 - The embedded application was rebuilt from the fresh Ubuntu clone and its
   smoke test passed again. Zephyr was installed separately at v4.4.1; it is
   not vendored into this repository.

@@ -4,6 +4,8 @@
 
 #include <stdint.h>
 
+#include "packet.h"
+
 /* Fixed-point values keep the packet-facing sample independent of a host FPU. */
 struct sensor_sample {
     uint32_t sequence;
@@ -19,6 +21,38 @@ K_MSGQ_DEFINE(sample_queue, sizeof(struct sensor_sample), 16, 4);
 static atomic_t samples_produced;
 static atomic_t samples_dropped;
 static atomic_t samples_reported;
+
+static void store_u16(uint8_t *destination, uint16_t value)
+{
+    destination[0] = (uint8_t)(value >> 8);
+    destination[1] = (uint8_t)value;
+}
+
+static void emit_sensor_frame(const struct sensor_sample *sample)
+{
+    struct of_packet packet = {
+        .type = OF_MSG_SENSOR,
+        .sequence = (uint16_t)sample->sequence,
+        .payload_length = 10,
+    };
+    uint8_t frame[OF_PACKET_MAX_FRAME];
+    size_t frame_length;
+
+    store_u16(&packet.payload[0], (uint16_t)sample->temperature_centi_c);
+    store_u16(&packet.payload[2], (uint16_t)sample->roll_centi_deg);
+    store_u16(&packet.payload[4], (uint16_t)sample->pitch_centi_deg);
+    store_u16(&packet.payload[6], (uint16_t)sample->yaw_centi_deg);
+    store_u16(&packet.payload[8], sample->battery_millivolts);
+    if (of_packet_encode(&packet, frame, sizeof(frame), &frame_length) != OF_PACKET_OK) {
+        printk("FRAME_ERROR seq=%u\n", sample->sequence);
+        return;
+    }
+    printk("FRAME ");
+    for (size_t i = 0; i < frame_length; ++i) {
+        printk("%02x", frame[i]);
+    }
+    printk("\n");
+}
 
 static void sensor_thread(void *arg1, void *arg2, void *arg3)
 {
@@ -74,6 +108,7 @@ static void telemetry_thread(void *arg1, void *arg2, void *arg3)
                latest.sequence, latest.temperature_centi_c,
                latest.roll_centi_deg, latest.pitch_centi_deg,
                latest.yaw_centi_deg, latest.battery_millivolts);
+        emit_sensor_frame(&latest);
         atomic_inc(&samples_reported);
     }
 }

@@ -14,8 +14,10 @@ them, fault management, and hardware emulation are subsequent milestones.
   `START_COLLECTION`, and `STOP_COLLECTION`. The collection flag is currently
   internal state; it does not yet control the Zephyr process.
 - `embedded`: Zephyr `native_sim` application with synthetic temperature,
-  attitude, and battery values. Values are demonstration data, not sensor
-  measurements.
+  attitude, and battery values. It emits CRC-protected diagnostic frames.
+  Values are demonstration data, not sensor measurements.
+- `protocol`: bounded packet codec and a provisional sensor payload format.
+  The programs do not yet exchange these packets over a link.
 
 ## Build the flight computer in WSL2 Ubuntu
 
@@ -72,16 +74,22 @@ source ~/openflight/fprime-venv/bin/activate
 python3 ~/openflight/tests/test_flight_computer_smoke.py ~/openflight/OpenFlight/FlightComputer
 deactivate
 python3 ~/openflight/tests/test_embedded_smoke.py ~/openflight-embedded-build/zephyr/zephyr.exe
+cc -std=c11 -Wall -Wextra -Werror -I ~/openflight/protocol \
+  ~/openflight/protocol/packet.c ~/openflight/tests/packet_test.c \
+  -o /tmp/openflight-packet-test
+/tmp/openflight-packet-test
 ```
 
 The first test starts the real GDS and flight computer, sends four commands,
 checks the ordered runtime events, then stops both processes. The second runs
 Zephyr for four real-time seconds and checks increasing samples, health
-reports, and the nominal dropped-sample count.
+reports, the nominal dropped-sample count, and packet CRCs. The final test
+checks packet round trips and rejection of corrupted or malformed frames.
 
 ## Project plan
 
 See [architecture](docs/architecture.md), [requirements](docs/requirements.md),
-and [verification](docs/verification.md). The next milestone defines a bounded
-binary protocol and connects the two programs; then fault injection and safe
-mode will be added. Renode processor emulation is a stretch goal.
+[packet format](protocol/packet_spec.md), and [verification](docs/verification.md).
+The next milestone connects the two programs using the packet format; then
+fault injection and safe mode will be added. Renode processor emulation is a
+stretch goal.
