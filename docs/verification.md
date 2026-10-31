@@ -1,5 +1,20 @@
 # Verification record
 
+## Mission dashboard milestone (2026-10-31)
+
+- Added a local dashboard bridge for F Prime channels, events, and an explicit
+  command allowlist.
+- Added live mission mode, fault, collection, battery, temperature, attitude,
+  packet, trend, scenario, recovery, and event-timeline views.
+- Added parser tests based on telemetry JSON and event text captured from the
+  running F Prime 4.4.1 deployment.
+- Updated the launcher to start and stop the dashboard with F Prime and Zephyr,
+  open port 8000 by default, and retain the engineering GDS on port 5000.
+- The integrated launcher reached both dashboard and GDS readiness. A live
+  browser session showed nominal telemetry, dispatched the low-battery
+  scenario, displayed 3.10 V and safe mode reason 1, then ran guarded recovery
+  and displayed `SafeModeExited` with nominal mode restored.
+
 ## Mission scenario milestone (2026-10-31)
 
 - The previous monolithic integration test was separated into five named

@@ -27,8 +27,10 @@ jobs:
             -o /tmp/openflight-packet-test
           /tmp/openflight-packet-test
 
-      - name: Check Python scenario syntax
-        run: python3 -m py_compile tests/*.py
+      - name: Check dashboard and scenario Python
+        run: |
+          python3 -m py_compile dashboard/*.py tests/*.py
+          python3 -m unittest discover -s tests -p "test_dashboard.py"
 
   mission-scenarios:
     name: Flight computer mission scenarios

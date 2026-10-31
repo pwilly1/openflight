@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="OpenFlight CubeSat flight operations dashboard" />
+    <title>OpenFlight Mission Control</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to mission data</a>
+    <div class="page-shell">
+      <header class="topbar">
+        <div class="brand-lockup">
+          <div class="mission-mark" aria-hidden="true">
+            <span></span><span></span><span></span>
+          </div>
+          <div>
+            <p class="eyebrow">CubeSat flight computer simulator</p>
+            <h1>OpenFlight <span>// Mission Control</span></h1>
+          </div>
+        </div>
+        <div class="topbar-status">
+          <div id="connectionPill" class="status-pill offline" role="status" aria-live="polite">
+            <span class="status-dot"></span>
+            <span id="connectionText">Connecting to F Prime</span>
+          </div>
+          <a class="utility-link" href="http://127.0.0.1:5000" target="_blank" rel="noreferrer">
+            Open engineering GDS <span aria-hidden="true">↗</span>
+          </a>
+        </div>
+      </header>
+
+      <main id="main">
+        <section class="mission-overview panel" aria-labelledby="overviewTitle">
+          <div class="overview-copy">
+            <p class="section-kicker">Live spacecraft state</p>
+            <div class="mode-line">
+              <h2 id="overviewTitle"><span id="modeText">Awaiting link</span></h2>
+              <span id="modeBadge" class="mode-badge unknown">Unknown</span>
+            </div>
+            <p id="missionNarrative" class="mission-narrative">
+              Establishing ground data streams and requesting flight-computer status.
+            </p>
+            <dl class="overview-facts">
+              <div>
+                <dt>Active scenario</dt>
+                <dd id="activeScenario">Standby</dd>
+              </div>
+              <div>
+                <dt>Collection</dt>
+                <dd id="collectionState">Unknown</dd>
+              </div>
+              <div>
+                <dt>Active fault</dt>
+                <dd id="faultState">Unknown</dd>
+              </div>
+              <div>
+                <dt>Healthy samples</dt>
+                <dd><span id="healthySamples">—</span> / 3</dd>
+              </div>
+            </dl>
+          </div>
+
+          <div class="orbit-visual" aria-label="Attitude visualization">
+            <div class="orbit-label orbit-label-top">+Y</div>
+            <div class="orbit-label orbit-label-right">+X</div>
+            <div class="orbit-ring orbit-ring-outer"></div>
+            <div class="orbit-ring orbit-ring-inner"></div>
+            <div class="crosshair crosshair-x"></div>
+            <div class="crosshair crosshair-y"></div>
+            <div id="spacecraft" class="spacecraft">
+              <span class="panel-wing panel-wing-left"></span>
+              <span class="spacecraft-body"></span>
+              <span class="panel-wing panel-wing-right"></span>
+            </div>
+            <div class="attitude-readout">
+              <span>ATTITUDE</span>
+              <strong id="attitudeSummary">R — / P — / Y —</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="telemetry-section" aria-labelledby="telemetryTitle">
+          <div class="section-heading">
+            <div>
+              <p class="section-kicker">Sensor downlink</p>
+              <h2 id="telemetryTitle">Telemetry</h2>
+            </div>
+            <p id="lastUpdate" class="last-update">No telemetry received</p>
+          </div>
+
+          <div class="telemetry-grid">
+            <article class="metric-card primary-metric">
+              <div class="metric-heading">
+                <span>Battery bus</span>
+                <span id="batteryFlag" class="metric-flag nominal">Nominal</span>
+              </div>
+              <p class="metric-value"><span id="batteryValue">—</span><small>V</small></p>
+              <div class="range-bar"><span id="batteryBar"></span></div>
+              <p class="metric-caption">Low-battery threshold: 3.30 V</p>
+            </article>
+
+            <article class="metric-card primary-metric">
+              <div class="metric-heading">
+                <span>Sensor temperature</span>
+                <span class="metric-code">TEMP</span>
+              </div>
+              <p class="metric-value"><span id="temperatureValue">—</span><small>°C</small></p>
+              <div class="range-bar temperature"><span id="temperatureBar"></span></div>
+              <p class="metric-caption">Synthetic payload measurement</p>
+            </article>
+
+            <article class="metric-card compact-metric">
+              <span>Roll</span>
+              <strong><span id="rollValue">—</span>°</strong>
+              <small>Body X axis</small>
+            </article>
+            <article class="metric-card compact-metric">
+              <span>Pitch</span>
+              <strong><span id="pitchValue">—</span>°</strong>
+              <small>Body Y axis</small>
+            </article>
+            <article class="metric-card compact-metric">
+              <span>Yaw</span>
+              <strong><span id="yawValue">—</span>°</strong>
+              <small>Body Z axis</small>
+            </article>
+            <article class="metric-card compact-metric packet-metric">
+              <span>Valid packets</span>
+              <strong id="packetValue">—</strong>
+              <small><span id="badPacketValue">—</span> rejected</small>
+            </article>
+
+            <article class="panel trend-card">
+              <div class="card-heading">
+                <div>
+                  <p class="section-kicker">Last 60 updates</p>
+                  <h3>Environmental trend</h3>
+                </div>
+                <div class="chart-legend" aria-hidden="true">
+                  <span class="legend-temperature">Temperature</span>
+                  <span class="legend-battery">Battery</span>
+                </div>
+              </div>
+              <canvas id="trendChart" aria-label="Recent temperature and battery trend"></canvas>
+            </article>
+          </div>
+        </section>
+
+        <section class="operations-grid" aria-label="Mission operations">
+          <article class="panel scenario-panel">
+            <div class="card-heading">
+              <div>
+                <p class="section-kicker">Repeatable test cases</p>
+                <h2>Mission scenarios</h2>
+              </div>
+              <span class="simulated-label">Simulated inputs</span>
+            </div>
+            <p class="section-intro">
+              Each action starts sensor collection, then applies one controlled stimulus through the real F Prime command path.
+            </p>
+            <div class="scenario-list">
+              <button class="scenario-card" data-scenario="nominal">
+                <span class="scenario-index">01</span>
+                <span class="scenario-copy">
+                  <strong>Nominal acquisition</strong>
+                  <small>Start clean sensor collection</small>
+                </span>
+                <span class="scenario-action">Run</span>
+              </button>
+              <button class="scenario-card" data-scenario="corrupted-packet">
+                <span class="scenario-index">02</span>
+                <span class="scenario-copy">
+                  <strong>Corrupted packet</strong>
+                  <small>Reject one CRC-invalid frame</small>
+                </span>
+                <span class="scenario-action">Run</span>
+              </button>
+              <button class="scenario-card" data-scenario="low-battery">
+                <span class="scenario-index">03</span>
+                <span class="scenario-copy">
+                  <strong>Low-battery emergency</strong>
+                  <small>Enter guarded safe mode</small>
+                </span>
+                <span class="scenario-action">Run</span>
+              </button>
+              <button class="scenario-card" data-scenario="frozen-sensor">
+                <span class="scenario-index">04</span>
+                <span class="scenario-copy">
+                  <strong>Frozen sensor</strong>
+                  <small>Detect non-changing measurements</small>
+                </span>
+                <span class="scenario-action">Run</span>
+              </button>
+              <button class="scenario-card" data-scenario="communication-outage">
+                <span class="scenario-index">05</span>
+                <span class="scenario-copy">
+                  <strong>Communication outage</strong>
+                  <small>Drop eight consecutive frames</small>
+                </span>
+                <span class="scenario-action">Run</span>
+              </button>
+            </div>
+          </article>
+
+          <article class="panel command-panel">
+            <div class="card-heading">
+              <div>
+                <p class="section-kicker">Operator actions</p>
+                <h2>Flight controls</h2>
+              </div>
+              <span class="command-lock">LOCAL GROUND LINK</span>
+            </div>
+            <div class="command-stack">
+              <button class="command-button primary" data-command="GET_STATUS">
+                <span>Request spacecraft status</span><small>GET_STATUS</small>
+              </button>
+              <div class="command-pair">
+                <button class="command-button" data-command="START_COLLECTION">
+                  <span>Start collection</span><small>START</small>
+                </button>
+                <button class="command-button" data-command="STOP_COLLECTION">
+                  <span>Stop collection</span><small>STOP</small>
+                </button>
+              </div>
+              <button id="recoverButton" class="command-button recover">
+                <span>Restore sensors and recover</span><small>GUARDED SEQUENCE · ~4 SEC</small>
+              </button>
+            </div>
+            <div class="operator-note">
+              <span class="note-marker">!</span>
+              <p>Recovery restores healthy values, waits for three valid samples, then requests safe-mode exit.</p>
+            </div>
+            <div id="actionStatus" class="action-status" aria-live="polite">Ready for operator input.</div>
+          </article>
+
+          <article class="panel event-panel">
+            <div class="card-heading event-heading">
+              <div>
+                <p class="section-kicker">F Prime event stream</p>
+                <h2>Mission timeline</h2>
+              </div>
+              <span id="eventCount" class="event-count">0 events</span>
+            </div>
+            <div id="eventTimeline" class="event-timeline" role="log" aria-live="polite">
+              <div class="empty-events">Waiting for flight-computer events…</div>
+            </div>
+          </article>
+        </section>
+      </main>
+
+      <footer>
+        <p>OpenFlight engineering demonstration · F Prime 4.4.1 · Zephyr 4.4.1</p>
+        <p>All spacecraft values and faults are simulated.</p>
+      </footer>
+    </div>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>

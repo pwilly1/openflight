@@ -18,6 +18,8 @@ and demonstrates fault detection, safe-mode entry, and guarded recovery.
   Values are demonstration data, not sensor measurements.
 - `protocol`: bounded packet codec and a provisional sensor payload format.
   Both programs use this codec over the serial link.
+- `dashboard`: local mission-control interface backed by live F Prime channels,
+  events, and commands.
 
 ## Quick start on the current Windows machine
 
@@ -28,8 +30,16 @@ powershell -ExecutionPolicy Bypass -File .\scripts\Start-OpenFlight.ps1
 ```
 
 The launcher starts Zephyr and F Prime in WSL, discovers the changing
-`/dev/pts/...` serial path, and opens `http://127.0.0.1:5000`. Keep the
-PowerShell window open and press Ctrl+C there to stop both processes.
+`/dev/pts/...` serial path, and opens the mission dashboard at
+`http://127.0.0.1:8000`. Keep the PowerShell window open and press Ctrl+C
+there to stop all processes. The standard F Prime engineering interface
+remains available at `http://127.0.0.1:5000`.
+
+The dashboard shows live battery, temperature, attitude, packet counts,
+operating mode, active fault, and the F Prime event timeline. Its five scenario
+buttons use the same command path as the automated mission tests. See
+[dashboard operations](docs/dashboard.md) for the control behavior and safety
+boundaries.
 
 ## Build the flight computer in WSL2 Ubuntu
 
@@ -125,6 +135,6 @@ GitHub Actions repeats the builds and scenarios for pushes and pull requests.
 See [architecture](docs/architecture.md), [requirements](docs/requirements.md),
 [packet format](protocol/packet_spec.md), and [verification](docs/verification.md).
 See [mission scenarios](docs/mission-scenarios.md) for the expected behavior and
-fault reason mapping. The next milestone adds a polished demonstration
-dashboard, architecture visuals, and application write-up. Renode processor
-emulation remains a stretch goal.
+fault reason mapping. The next milestone adds architecture visuals, a short
+demonstration recording, and an application-ready project write-up. Renode
+processor emulation remains a stretch goal.

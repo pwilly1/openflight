@@ -12,6 +12,6 @@ if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($wslPathOutput)) {
 $wslScript = $wslPathOutput.Trim()
 
 Write-Host "Starting OpenFlight in WSL..."
-Write-Host "The browser will open when F Prime is ready. Press Ctrl+C to stop everything."
+Write-Host "The mission dashboard will open when F Prime is ready. Press Ctrl+C to stop everything."
 & wsl.exe --exec bash $wslScript
 exit $LASTEXITCODE
