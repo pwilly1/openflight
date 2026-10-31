@@ -23,10 +23,22 @@ structure. The stream parser searches for the marker and rejects bad lengths
 or CRCs. Sequence-gap accounting is future work. A sensor timeout is reported
 after three seconds while collection is enabled.
 
-Command payloads are one byte: `1` starts collection, `2` stops it. Zephyr
-replies with an acknowledgment packet using the same sequence and a two-byte
-payload: command code, then `1` if accepted or `0` if rejected. F Prime updates
-the collection channel only after a matching acknowledgment.
+The first command payload byte is a command code:
+
+| Code | Command | Additional payload |
+| ---: | --- | --- |
+| 1 | Start collection | None |
+| 2 | Stop collection | None |
+| 3 | Corrupt the next sensor packet | None |
+| 4 | Drop sensor packets | One byte containing a nonzero packet count |
+| 5 | Report low battery voltage | None |
+| 6 | Freeze sensor values | None |
+| 7 | Restore nominal sensor behavior | None |
+
+Zephyr replies with an acknowledgment using the command sequence and a
+two-byte payload: command code, then `1` if accepted or `0` if rejected.
+F Prime changes collection or fault-injection state only after a matching
+acknowledgment.
 
 The sensor payload is currently 10 bytes: signed temperature in centi-°C,
 signed roll/pitch/yaw in centi-degrees, and unsigned battery voltage in

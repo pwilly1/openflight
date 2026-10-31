@@ -21,6 +21,16 @@ enum of_message_type {
     OF_MSG_ACK = 4,
 };
 
+enum of_command_code {
+    OF_CMD_START_COLLECTION = 1,
+    OF_CMD_STOP_COLLECTION = 2,
+    OF_CMD_CORRUPT_NEXT_PACKET = 3,
+    OF_CMD_DROP_PACKETS = 4,
+    OF_CMD_LOW_BATTERY = 5,
+    OF_CMD_FREEZE_SENSOR = 6,
+    OF_CMD_RESTORE_SENSOR = 7,
+};
+
 enum of_packet_result {
     OF_PACKET_OK = 0,
     OF_PACKET_INVALID_ARGUMENT = -1,

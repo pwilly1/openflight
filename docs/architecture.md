@@ -3,31 +3,35 @@
 ## Current system
 
 ```text
-Ground operator -> F Prime GDS -> FlightComputer deployment -> StatusManager
-                                                          commands, events, telemetry
-
-Zephyr native_sim -> sensor thread -> bounded message queue -> telemetry thread
-                                      health thread monitors counters
-                                      telemetry thread -> packet codec -> hex log
+Ground operator -> F Prime GDS -> StatusManager -> framed command -> virtual UART
+                                      ^                              |
+                                      |                              v
+                         events and telemetry <- validated frame <- Zephyr native_sim
+                                                              sensor thread
+                                                              bounded queue
+                                                              fault controls
 ```
 
-The F Prime deployment and Zephyr application currently run independently.
-`StatusManager` owns only the collection flag and request count. The Zephyr
-application owns synthetic sensor values and its local fixed-size queue. Its
-hexadecimal packet output is for inspection and testing, not yet a transport
-to the flight computer.
+Zephyr produces synthetic fixed-point sensor values and sends bounded,
+CRC-protected frames through a pseudoterminal UART. `StatusManager` validates
+the stream, publishes sensor channels, sends collection and fault-injection
+commands, and changes collection state only after a matching acknowledgment.
 
-## Intended integration
+## Fault management
 
-The flight computer will host a sensor-link component that validates and
-parses framed messages from the embedded controller. That component will
-publish accepted measurements through F Prime telemetry channels. The link
-will use a virtual transport during `native_sim` testing and a UART-backed
-transport for a selected Renode target. A state manager and fault monitor will
-enforce safe-mode behavior after validated fault conditions.
+Zephyr can corrupt the next frame, drop a bounded number of frames, hold its
+sensor values, or report low battery voltage. F Prime rejects bad CRCs and
+enters safe mode for a critical low battery, a link timeout, a frozen sensor,
+or three consecutive invalid frames. Sensor monitoring continues in safe mode
+so recovery conditions can be measured.
 
-The binary framing, byte order, length limits, checksum, sequence policy, and
-timeouts will be specified before either side implements the link.
+Clearing the injected condition does not leave safe mode. F Prime first
+requires three healthy samples, clears the active fault, and then requires an
+explicit `RECOVER_SAFE_MODE` ground command. This separates evidence that the
+sensor recovered from operator approval to resume normal operation.
+
+The virtual transport can later be replaced by a UART-backed driver for a
+selected Renode or physical target without changing the packet format.
 
 ## Scope limits
 

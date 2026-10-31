@@ -22,6 +22,29 @@ def wait_for_text(path: Path, expected: str, timeout: float) -> str:
     raise AssertionError(f"Timed out waiting for {expected!r} in {path}:\n{content}")
 
 
+def wait_for_count(path: Path, expected: str, count: int, timeout: float) -> str:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        content = path.read_text(errors="replace") if path.exists() else ""
+        if content.count(expected) >= count:
+            return content
+        time.sleep(0.2)
+    content = path.read_text(errors="replace") if path.exists() else "<no log>"
+    raise AssertionError(
+        f"Timed out waiting for {count} occurrences of {expected!r} in {path}:\n{content}"
+    )
+
+
+def send_command(deployment: Path, command: str, *arguments: str) -> None:
+    invocation = ["fprime-cli", "command-send", f"OpenFlight.statusManager.{command}"]
+    if arguments:
+        invocation.extend(["--arguments", *arguments])
+    subprocess.run(
+        invocation, cwd=deployment, check=True, timeout=15,
+        stdout=subprocess.DEVNULL,
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("deployment", type=Path, help="Built FlightComputer source directory")
@@ -57,13 +80,7 @@ def main() -> None:
                 ("GET_STATUS", "StatusReported : Collection enabled: 1; status requests: 2"),
                 ("STOP_COLLECTION", "CollectionChanged : Collection enabled: 0"),
             ):
-                subprocess.run(
-                    ["fprime-cli", "command-send", f"OpenFlight.statusManager.{command}"],
-                    cwd=deployment,
-                    check=True,
-                    timeout=15,
-                    stdout=subprocess.DEVNULL,
-                )
+                send_command(deployment, command)
                 wait_for_text(log_path, confirmation, 12)
             log = wait_for_text(log_path, "CollectionChanged : Collection enabled: 0", 12)
             log = wait_for_text(log_path, "SensorReceived", 12)
@@ -76,10 +93,7 @@ def main() -> None:
             positions = [log.find(item) for item in expected]
             if -1 in positions or positions != sorted(positions):
                 raise AssertionError(f"Missing or out-of-order runtime events:\n{log}")
-            subprocess.run(
-                ["fprime-cli", "command-send", "OpenFlight.statusManager.START_COLLECTION"],
-                cwd=deployment, check=True, timeout=15, stdout=subprocess.DEVNULL,
-            )
+            send_command(deployment, "START_COLLECTION")
             deadline = time.monotonic() + 12
             while time.monotonic() < deadline:
                 log = log_path.read_text(errors="replace")
@@ -88,10 +102,42 @@ def main() -> None:
                 time.sleep(0.2)
             else:
                 raise AssertionError("Second START_COLLECTION was not acknowledged")
+
+            send_command(deployment, "INJECT_CORRUPT_PACKET")
+            wait_for_text(log_path, "Fault injection code: 3; value: 1", 12)
+            wait_for_text(log_path, "Sensor packet rejected: -5", 12)
+
+            send_command(deployment, "INJECT_LOW_BATTERY")
+            wait_for_text(log_path, "Fault injection code: 5; value: 1", 12)
+            wait_for_text(log_path, "Safe mode entered; reason: 1", 12)
+            send_command(deployment, "RECOVER_SAFE_MODE")
+            wait_for_text(log_path, "Safe-mode recovery rejected", 12)
+            send_command(deployment, "RESTORE_SENSOR")
+            wait_for_text(log_path, "Fault injection code: 7; value: 0", 12)
+            wait_for_text(log_path, "Fault cleared after healthy samples; reason: 1", 12)
+            send_command(deployment, "RECOVER_SAFE_MODE")
+            wait_for_count(log_path, "Safe mode exited by operator command", 1, 12)
+
+            send_command(deployment, "INJECT_FREEZE_SENSOR")
+            wait_for_text(log_path, "Fault injection code: 6; value: 1", 12)
+            wait_for_text(log_path, "Safe mode entered; reason: 3", 12)
+            send_command(deployment, "RESTORE_SENSOR")
+            wait_for_text(log_path, "Fault cleared after healthy samples; reason: 3", 12)
+            send_command(deployment, "RECOVER_SAFE_MODE")
+            wait_for_count(log_path, "Safe mode exited by operator command", 2, 12)
+
+            send_command(deployment, "INJECT_DROP_PACKETS", "8")
+            wait_for_text(log_path, "Fault injection code: 4; value: 8", 12)
+            wait_for_text(log_path, "Safe mode entered; reason: 2", 12)
+            wait_for_text(log_path, "Sensor link restored", 12)
+            wait_for_text(log_path, "Fault cleared after healthy samples; reason: 2", 12)
+            send_command(deployment, "RECOVER_SAFE_MODE")
+            wait_for_count(log_path, "Safe mode exited by operator command", 3, 12)
+
             os.killpg(zephyr.pid, signal.SIGTERM)
             zephyr.wait(timeout=5)
-            wait_for_text(log_path, "SensorLinkLost", 8)
-            print("F Prime/Zephyr serial, command ACK, and sensor smoke test passed")
+            wait_for_count(log_path, "SensorLinkLost", 2, 8)
+            print("F Prime/Zephyr fault injection and safe-mode scenario passed")
         finally:
             if process.poll() is None:
                 os.killpg(process.pid, signal.SIGTERM)

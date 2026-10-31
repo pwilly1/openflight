@@ -3,15 +3,15 @@
 OpenFlight is a hardware-free CubeSat flight-computer project. It combines a
 [NASA F Prime](https://fprime.jpl.nasa.gov/) flight-software deployment with a
 [Zephyr](https://docs.zephyrproject.org/) simulated sensor controller. The
-current milestone links both runtimes through a simulated serial connection.
-Automated recovery and hardware emulation are later milestones.
+current milestone links both runtimes through a simulated serial connection
+and demonstrates fault detection, safe-mode entry, and guarded recovery.
 
 ## Current milestone
 
 - `OpenFlight/FlightComputer`: F Prime deployment with its standard command,
   telemetry, and event services.
-- `OpenFlight/Components/StatusManager`: handles `GET_STATUS`,
-  `START_COLLECTION`, and `STOP_COLLECTION`. Zephyr acknowledges state changes.
+- `OpenFlight/Components/StatusManager`: handles collection, sensor telemetry,
+  controlled fault injection, safe-mode entry, and operator-approved recovery.
 - `embedded`: Zephyr `native_sim` application with synthetic temperature,
   attitude, and battery values. It sends CRC-protected packets over a simulated
   UART and prints diagnostic frames.
@@ -48,7 +48,12 @@ Send `OpenFlight.statusManager.GET_STATUS`, `START_COLLECTION`, and
 `STOP_COLLECTION` from the Commanding tab. Inspect `StatusReported` and
 `CollectionChanged` in Events, and `CollectionEnabled` and `StatusRequests` in
 Channels. Sensor temperature and attitude channels use centi units; battery
-uses millivolts. For a terminal-only GDS, run `fprime-gds -g none` and use
+uses millivolts. `OperatingMode` is 0 for normal and 1 for safe mode;
+`ActiveFault` identifies the current fault. The fault commands are
+`INJECT_CORRUPT_PACKET`, `INJECT_DROP_PACKETS`, `INJECT_LOW_BATTERY`,
+`INJECT_FREEZE_SENSOR`, and `RESTORE_SENSOR`. Safe mode exits only after three
+healthy samples and `RECOVER_SAFE_MODE`. For a terminal-only GDS, run
+`fprime-gds -g none` and use
 `fprime-cli command-send OpenFlight.statusManager.GET_STATUS` in a second
 activated terminal.
 
@@ -87,14 +92,17 @@ cc -std=c11 -Wall -Wextra -Werror -I ~/openflight/protocol \
 ```
 
 The first test starts Zephyr, the real GDS, and the flight computer. It checks
-command acknowledgments, sensor events, and link-loss detection after Zephyr
-stops. The second runs Zephyr for four real-time seconds and checks increasing samples, health
-reports, the nominal dropped-sample count, and packet CRCs. The final test
-checks packet round trips, stream recovery, and rejection of corrupted frames.
+normal collection, command acknowledgments, live CRC rejection, low-battery
+and frozen-sensor safe mode, dropped-packet link loss, rejected early recovery,
+three guarded recoveries, and final process-loss detection. The second runs
+Zephyr for four real-time seconds and checks increasing samples, health reports,
+the nominal dropped-sample count, and packet CRCs. The final test checks packet
+round trips, stream recovery, and rejection of corrupted frames.
 
 ## Project plan
 
 See [architecture](docs/architecture.md), [requirements](docs/requirements.md),
 [packet format](protocol/packet_spec.md), and [verification](docs/verification.md).
-The next milestone adds controlled fault injection and safe mode. Renode
-processor emulation is a stretch goal.
+The next milestone packages reusable mission scenarios and continuous checks,
+then adds a polished demonstration dashboard and application write-up. Renode
+processor emulation remains a stretch goal.

@@ -1,5 +1,29 @@
 # Verification record
 
+## Fault management milestone (2026-10-30)
+
+Environment: Ubuntu 24.04 under WSL2, F Prime v4.4.1, Zephyr v4.4.1,
+`native_sim/native/64`.
+
+- F Prime and Zephyr rebuilt successfully with the fault-management commands,
+  events, channels, and operating-mode logic.
+- The end-to-end scenario injected a bad CRC and observed
+  `SensorPacketRejected` in the real GDS event log.
+- Persistent low battery and frozen sensor values each caused safe-mode entry
+  with their distinct fault reason.
+- Dropping eight packets caused the three-second link timeout, safe-mode entry,
+  link restoration, and recovery qualification.
+- A recovery command sent while low battery was active was rejected. After
+  `RESTORE_SENSOR`, three healthy samples cleared each active fault, but safe
+  mode persisted until the explicit `RECOVER_SAFE_MODE` command.
+- The scenario completed three guarded recoveries and then verified that
+  terminating Zephyr caused a second link-loss event.
+- Repeated-invalid-frame safe-mode entry is implemented with a threshold of
+  three consecutive parser errors; this specific threshold path was not
+  exercised by the end-to-end scenario.
+- All fault values and timing are simulated; this is not physical battery,
+  sensor, UART, or real-time validation.
+
 ## Serial integration milestone (2026-10-30)
 
 Environment: Ubuntu 24.04 under WSL2, F Prime v4.4.1, Zephyr v4.4.1,
@@ -13,8 +37,8 @@ Environment: Ubuntu 24.04 under WSL2, F Prime v4.4.1, Zephyr v4.4.1,
 - After collection was restarted, terminating Zephyr caused `SensorLinkLost`
   within the test's eight-second limit.
 - The strict C packet test passed round-trip, corrupt-CRC rejection, and
-  stream recovery checks. Corrupt bytes were tested at codec level; injecting
-  corruption into the running serial link is still future work.
+  stream recovery checks. The later fault scenario also injected corruption
+  into the live virtual serial link.
 - These tests exercise a simulated Linux UART, not physical hardware or
   real spacecraft sensors.
 

@@ -24,6 +24,10 @@ static atomic_t samples_produced;
 static atomic_t samples_dropped;
 static atomic_t samples_reported;
 static atomic_t collection_enabled = ATOMIC_INIT(0);
+static atomic_t corrupt_next_packet;
+static atomic_t packets_to_drop;
+static atomic_t low_battery_enabled;
+static atomic_t freeze_sensor_enabled;
 static const struct device *const uart = DEVICE_DT_GET(DT_NODELABEL(uart0));
 K_MUTEX_DEFINE(uart_tx_mutex);
 
@@ -42,6 +46,18 @@ static void send_frame(const struct of_packet *packet)
     k_mutex_unlock(&uart_tx_mutex);
 }
 
+static void send_encoded_frame(const uint8_t *frame, size_t length)
+{
+    if (!device_is_ready(uart)) {
+        return;
+    }
+    k_mutex_lock(&uart_tx_mutex, K_FOREVER);
+    for (size_t i = 0; i < length; ++i) {
+        uart_poll_out(uart, frame[i]);
+    }
+    k_mutex_unlock(&uart_tx_mutex);
+}
+
 static void command_thread(void *arg1, void *arg2, void *arg3)
 {
     struct of_packet_stream stream = {0};
@@ -51,12 +67,46 @@ static void command_thread(void *arg1, void *arg2, void *arg3)
     while (true) {
         while (device_is_ready(uart) && uart_poll_in(uart, &byte) == 0) {
             if (of_packet_stream_feed(&stream, byte, &packet) == 1 &&
-                packet.type == OF_MSG_COMMAND && packet.payload_length == 1) {
+                packet.type == OF_MSG_COMMAND && packet.payload_length >= 1) {
                 uint8_t command = packet.payload[0];
-                uint8_t accepted = command == 1 || command == 2;
-                if (accepted) {
-                    atomic_set(&collection_enabled, command == 1);
-                    if (command == 2) { k_msgq_purge(&sample_queue); }
+                uint8_t accepted = 1;
+                if (command != OF_CMD_DROP_PACKETS && packet.payload_length != 1) {
+                    accepted = 0;
+                } else {
+                    switch (command) {
+                    case OF_CMD_START_COLLECTION:
+                        atomic_set(&collection_enabled, 1);
+                        break;
+                    case OF_CMD_STOP_COLLECTION:
+                        atomic_set(&collection_enabled, 0);
+                        k_msgq_purge(&sample_queue);
+                        break;
+                    case OF_CMD_CORRUPT_NEXT_PACKET:
+                        atomic_set(&corrupt_next_packet, 1);
+                        break;
+                    case OF_CMD_DROP_PACKETS:
+                        if (packet.payload_length != 2 || packet.payload[1] == 0) {
+                            accepted = 0;
+                        } else {
+                            atomic_set(&packets_to_drop, packet.payload[1]);
+                        }
+                        break;
+                    case OF_CMD_LOW_BATTERY:
+                        atomic_set(&low_battery_enabled, 1);
+                        break;
+                    case OF_CMD_FREEZE_SENSOR:
+                        atomic_set(&freeze_sensor_enabled, 1);
+                        break;
+                    case OF_CMD_RESTORE_SENSOR:
+                        atomic_set(&corrupt_next_packet, 0);
+                        atomic_set(&packets_to_drop, 0);
+                        atomic_set(&low_battery_enabled, 0);
+                        atomic_set(&freeze_sensor_enabled, 0);
+                        break;
+                    default:
+                        accepted = 0;
+                        break;
+                    }
                 }
                 printk("COMMAND code=%u accepted=%u\n", command, accepted);
                 struct of_packet ack = {
@@ -95,12 +145,16 @@ static void emit_sensor_frame(const struct sensor_sample *sample)
         printk("FRAME_ERROR seq=%u\n", sample->sequence);
         return;
     }
+    if (atomic_cas(&corrupt_next_packet, 1, 0)) {
+        frame[7] ^= 0x01u;
+        printk("FAULT corrupted seq=%u\n", sample->sequence);
+    }
     printk("FRAME ");
     for (size_t i = 0; i < frame_length; ++i) {
         printk("%02x", frame[i]);
     }
     printk("\n");
-    send_frame(&packet);
+    send_encoded_frame(frame, frame_length);
 }
 
 static void sensor_thread(void *arg1, void *arg2, void *arg3)
@@ -124,8 +178,11 @@ static void sensor_thread(void *arg1, void *arg2, void *arg3)
             continue;
         }
         sample.sequence++;
-        sample.temperature_centi_c = 2450 + (sample.sequence % 100);
-        sample.yaw_centi_deg = 1540 + (sample.sequence % 30);
+        if (!atomic_get(&freeze_sensor_enabled)) {
+            sample.temperature_centi_c = 2450 + (sample.sequence % 100);
+            sample.yaw_centi_deg = 1540 + (sample.sequence % 30);
+        }
+        sample.battery_millivolts = atomic_get(&low_battery_enabled) ? 3100 : 3800;
 
         if (k_msgq_put(&sample_queue, &sample, K_NO_WAIT) != 0) {
             struct sensor_sample discarded;
@@ -156,6 +213,12 @@ static void telemetry_thread(void *arg1, void *arg2, void *arg3)
         }
         while (k_msgq_get(&sample_queue, &next, K_NO_WAIT) == 0) {
             latest = next;
+        }
+        if (atomic_get(&packets_to_drop) > 0) {
+            atomic_dec(&packets_to_drop);
+            printk("FAULT dropped seq=%u remaining=%ld\n", latest.sequence,
+                   (long)atomic_get(&packets_to_drop));
+            continue;
         }
         printk("SAMPLE seq=%u temp_centi_c=%d roll_centi_deg=%d "
                "pitch_centi_deg=%d yaw_centi_deg=%d battery_mv=%u\n",
