@@ -173,6 +173,10 @@ void StatusManager::run_handler(FwIndexType portNum, U32 context) {
         checkLinkTimeout();
         return;
     }
+    // Check for an overdue sensor link before consuming newly arrived data.
+    // Otherwise, the first packet after an outage can reset m_lastSensor and
+    // hide a timeout that elapsed between scheduler invocations.
+    checkLinkTimeout();
     U8 bytes[256];
     ssize_t count;
     while ((count = read(m_serialFd, bytes, sizeof(bytes))) > 0) {
