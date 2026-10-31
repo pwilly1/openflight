@@ -66,7 +66,8 @@ jobs:
         env:
           ZEPHYR_WORKSPACE: ${{ runner.temp }}/zephyrproject
         run: |
-          python -m pip install west
+          python -m pip install --upgrade "cmake>=3.28,<4" west
+          python -c "import re, subprocess; version = re.search(r'[0-9]+(?:\.[0-9]+)+', subprocess.check_output(['cmake', '--version'], text=True)).group(); assert tuple(map(int, version.split('.')[:2])) >= (3, 28), version; print(f'CMake {version} selected for Zephyr')"
           west init -m https://github.com/zephyrproject-rtos/zephyr --mr v4.4.1 "$ZEPHYR_WORKSPACE"
           cd "$ZEPHYR_WORKSPACE"
           west update --narrow
