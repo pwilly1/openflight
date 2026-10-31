@@ -12,5 +12,7 @@
 | OF-007 | Critical faults cause safe-mode entry. | Low-battery, frozen-sensor, and link-timeout scenarios | Implemented |
 | OF-008 | Recovery requires valid conditions and an explicit command. | Rejected early recovery and three successful guarded recoveries | Implemented |
 | OF-009 | Ground commands can inject bounded, repeatable sensor faults. | Corrupt, drop, low-battery, freeze, and restore command acknowledgments | Implemented |
+| OF-010 | Mission behavior is repeatable as independently reported scenarios. | Five-scenario runner and Markdown report | Implemented |
+| OF-011 | Pushes and pull requests repeat host builds and mission scenarios. | GitHub Actions workflow | Implemented; first remote run pending |
 
 “Implemented” refers only to the listed slice, not the full proposed system.

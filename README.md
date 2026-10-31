@@ -19,12 +19,24 @@ and demonstrates fault detection, safe-mode entry, and guarded recovery.
 - `protocol`: bounded packet codec and a provisional sensor payload format.
   Both programs use this codec over the serial link.
 
+## Quick start on the current Windows machine
+
+From PowerShell in this repository, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\Start-OpenFlight.ps1
+```
+
+The launcher starts Zephyr and F Prime in WSL, discovers the changing
+`/dev/pts/...` serial path, and opens `http://127.0.0.1:5000`. Keep the
+PowerShell window open and press Ctrl+C there to stop both processes.
+
 ## Build the flight computer in WSL2 Ubuntu
 
 Use Ubuntu's native filesystem for the checkout and build products. Building
 under `/mnt/c` works but is much slower. The clone command below applies after
 this repository has been pushed to GitHub. On the current machine, a matching
-Ubuntu build copy is already at `~/openflight-build`.
+Ubuntu build copy is already at `~/openflight-clean`.
 
 ```bash
 sudo apt update
@@ -75,14 +87,24 @@ Stop the running simulation with Ctrl+C. Collection begins disabled and starts
 after the flight computer sends `START_COLLECTION`. Its `SAMPLE` and `HEALTH`
 lines show synthetic values, queue use, and dropped sample count.
 
-## Run the milestone smoke tests
+## Run the mission scenarios
 
 After building both programs in WSL2 Ubuntu:
 
 ```bash
 source ~/openflight/fprime-venv/bin/activate
+python3 ~/openflight/tests/run_mission_scenarios.py ~/openflight/OpenFlight/FlightComputer \
+  --zephyr ~/openflight-embedded-build/zephyr/zephyr.exe
+
+# Run one scenario and save a Markdown report
+python3 ~/openflight/tests/run_mission_scenarios.py ~/openflight/OpenFlight/FlightComputer \
+  --zephyr ~/openflight-embedded-build/zephyr/zephyr.exe \
+  --scenario low-battery --report ~/openflight/build-artifacts/mission-report.md
+
+# The previous command remains available as a compatibility wrapper
 python3 ~/openflight/tests/test_flight_computer_smoke.py ~/openflight/OpenFlight/FlightComputer \
   --zephyr ~/openflight-embedded-build/zephyr/zephyr.exe
+
 deactivate
 python3 ~/openflight/tests/test_embedded_smoke.py ~/openflight-embedded-build/zephyr/zephyr.exe
 cc -std=c11 -Wall -Wextra -Werror -I ~/openflight/protocol \
@@ -91,18 +113,18 @@ cc -std=c11 -Wall -Wextra -Werror -I ~/openflight/protocol \
 /tmp/openflight-packet-test
 ```
 
-The first test starts Zephyr, the real GDS, and the flight computer. It checks
-normal collection, command acknowledgments, live CRC rejection, low-battery
-and frozen-sensor safe mode, dropped-packet link loss, rejected early recovery,
-three guarded recoveries, and final process-loss detection. The second runs
-Zephyr for four real-time seconds and checks increasing samples, health reports,
-the nominal dropped-sample count, and packet CRCs. The final test checks packet
-round trips, stream recovery, and rejection of corrupted frames.
+The scenario runner starts one real GDS and flight computer session and reports
+separate results for nominal operation, CRC rejection, low battery, a frozen
+sensor, and a communication outage. The Zephyr smoke test checks increasing
+samples, health reports, nominal queue behavior, and packet CRCs. The C test
+checks packet round trips, stream recovery, and rejection of corrupted frames.
+GitHub Actions repeats the builds and scenarios for pushes and pull requests.
 
 ## Project plan
 
 See [architecture](docs/architecture.md), [requirements](docs/requirements.md),
 [packet format](protocol/packet_spec.md), and [verification](docs/verification.md).
-The next milestone packages reusable mission scenarios and continuous checks,
-then adds a polished demonstration dashboard and application write-up. Renode
-processor emulation remains a stretch goal.
+See [mission scenarios](docs/mission-scenarios.md) for the expected behavior and
+fault reason mapping. The next milestone adds a polished demonstration
+dashboard, architecture visuals, and application write-up. Renode processor
+emulation remains a stretch goal.

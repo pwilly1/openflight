@@ -1,0 +1,98 @@
+name: OpenFlight checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: openflight-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  packet-codec:
+    name: Packet codec and test syntax
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out OpenFlight
+        uses: actions/checkout@v7
+
+      - name: Compile and run packet tests
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -I protocol \
+            protocol/packet.c tests/packet_test.c \
+            -o /tmp/openflight-packet-test
+          /tmp/openflight-packet-test
+
+      - name: Check Python scenario syntax
+        run: python3 -m py_compile tests/*.py
+
+  mission-scenarios:
+    name: Flight computer mission scenarios
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out OpenFlight and F Prime
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install host build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes cmake default-jre g++ make ninja-build
+
+      - name: Install F Prime tools
+        run: python -m pip install --requirement requirements.txt
+
+      - name: Build the F Prime flight computer
+        run: |
+          fprime-util generate
+          cd OpenFlight/FlightComputer
+          fprime-util build
+
+      - name: Install Zephyr 4.4.1
+        env:
+          ZEPHYR_WORKSPACE: ${{ runner.temp }}/zephyrproject
+        run: |
+          python -m pip install west
+          west init -m https://github.com/zephyrproject-rtos/zephyr --mr v4.4.1 "$ZEPHYR_WORKSPACE"
+          cd "$ZEPHYR_WORKSPACE"
+          west update --narrow
+          west zephyr-export
+          python -m pip install --requirement zephyr/scripts/requirements.txt
+
+      - name: Build the Zephyr sensor simulator
+        env:
+          ZEPHYR_BASE: ${{ runner.temp }}/zephyrproject/zephyr
+          ZEPHYR_WORKSPACE: ${{ runner.temp }}/zephyrproject
+          ZEPHYR_TOOLCHAIN_VARIANT: host/gnu
+          ZEPHYR_BUILD: ${{ runner.temp }}/openflight-embedded-build
+        run: |
+          cd "$ZEPHYR_WORKSPACE"
+          west build -b native_sim/native/64 "$GITHUB_WORKSPACE/embedded" -d "$ZEPHYR_BUILD"
+
+      - name: Run named mission scenarios
+        env:
+          ZEPHYR_EXECUTABLE: ${{ runner.temp }}/openflight-embedded-build/zephyr/zephyr.exe
+        run: |
+          python tests/run_mission_scenarios.py OpenFlight/FlightComputer \
+            --zephyr "$ZEPHYR_EXECUTABLE" \
+            --report build-artifacts/mission-scenario-report.md
+
+      - name: Upload mission report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mission-scenario-report
+          path: build-artifacts/mission-scenario-report.md
+          if-no-files-found: warn

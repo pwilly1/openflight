@@ -1,5 +1,20 @@
 # Verification record
 
+## Mission scenario milestone (2026-10-31)
+
+- The previous monolithic integration test was separated into five named
+  scenarios while retaining its original command as a compatibility wrapper.
+- One continuous F Prime session passed nominal, corrupted-packet, low-battery,
+  frozen-sensor, and communication-outage scenarios: 5/5 passed.
+- The runner generated a Markdown report with each scenario's result and
+  duration and returned success only after every selected scenario passed.
+- The Windows launcher started Zephyr, discovered `/dev/pts/2`, started F Prime
+  GDS, and reported the web interface ready at `http://127.0.0.1:5000`.
+- The launcher was stopped with Ctrl+C and its process groups were cleaned up.
+- GitHub Actions configuration now builds the packet codec, F Prime deployment,
+  and Zephyr simulator before running the five scenarios. The remote workflow
+  cannot be claimed as passing until this commit is pushed and GitHub runs it.
+
 ## Fault management milestone (2026-10-30)
 
 Environment: Ubuntu 24.04 under WSL2, F Prime v4.4.1, Zephyr v4.4.1,
